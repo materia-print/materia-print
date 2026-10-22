@@ -260,7 +260,7 @@ footer .credits a { color: var(--copper); text-decoration: underline; }
   <div class="eyebrow" style="margin-top:44px">Trabajos realizados</div>
   <div class="works">
     <div class="work"><b>Mumha</b><span>Aromatizantes para auto. Catálogo de fragancias y pedidos por WhatsApp.</span><a href="https://www.mumha.com.ar" target="_blank" rel="noopener">mumha.com.ar ↗</a></div>
-    <div class="work"><b>Lucas Water</b><span>Agua y soda a domicilio. Productos, formulario de pedido y botón de WhatsApp.</span></div>
+    <div class="work"><b>Lucas Water</b><span>Agua y soda a domicilio. Productos, formulario de pedido y botón de WhatsApp.</span><a href="https://www.lucas-water.com.ar/" target="_blank" rel="noopener">lucas-water.com.ar ↗</a></div>
     <div class="work"><b>Materia Print</b><span>Esta misma página: productos, muestras, precios y contacto.</span></div>
   </div>
 </section>
@@ -303,7 +303,7 @@ footer .credits a { color: var(--copper); text-decoration: underline; }
   <div class="tablewrap">
     <table>
       <thead><tr><th>Producto</th><th>Impresión</th><th class="num">50 unidades</th><th class="num">100 unidades</th></tr></thead>
-      <tbody><tr><td>Tarjetas y etiquetas · papel madera</td><td>Simple faz</td><td class="num">$9.000</td><td class="num">$15.000</td></tr><tr class=sub><td></td><td>Doble faz</td><td class="num">$12.000</td><td class="num">$18.000</td></tr><tr><td>Tarjetas y etiquetas · papel blanco</td><td>Simple faz</td><td class="num">$10.000</td><td class="num">$16.000</td></tr><tr class=sub><td></td><td>Doble faz</td><td class="num">$13.000</td><td class="num">$20.000</td></tr><tr><td>Etiquetas autoadhesivas brillantes</td><td>Simple faz</td><td class="num">$10.000</td><td class="num">$16.000</td></tr><tr><td>Imanes de 5 × 7 cm</td><td>Simple faz</td><td class="num">$17.000</td><td class="num">$28.000</td></tr></tbody>
+      <tbody id="precios-body"><tr><td>Tarjetas y etiquetas · papel madera</td><td>Simple faz</td><td class="num">$9.000</td><td class="num">$15.000</td></tr><tr class=sub><td></td><td>Doble faz</td><td class="num">$12.000</td><td class="num">$18.000</td></tr><tr><td>Tarjetas y etiquetas · papel blanco</td><td>Simple faz</td><td class="num">$10.000</td><td class="num">$16.000</td></tr><tr class=sub><td></td><td>Doble faz</td><td class="num">$13.000</td><td class="num">$20.000</td></tr><tr><td>Etiquetas autoadhesivas brillantes</td><td>Simple faz</td><td class="num">$10.000</td><td class="num">$16.000</td></tr><tr><td>Imanes de 5 × 7 cm</td><td>Simple faz</td><td class="num">$17.000</td><td class="num">$28.000</td></tr></tbody>
     </table>
   </div>
   <p class="note">El diseño está incluido en el precio. Doble faz es impresión de frente y dorso. Escribinos con tu idea y te pasamos el presupuesto exacto. Y si todavía no sabés qué querés, también escribinos: armamos juntos tu tarjeta, tu marca o tu logo.</p>
@@ -343,6 +343,65 @@ document.querySelectorAll('.copy').forEach(function(b){
     try{navigator.clipboard.writeText(t).then(done,sel)}catch(e){sel()}
   });
 });
+</script>
+<script>
+/* Precios desde Google Sheets (CSV publicado).
+   Columnas de la hoja: Producto | Impresion | 50 | 100
+   Si una fila repite el Producto de la anterior, se muestra como sub-fila (ej. Doble faz).
+   Si la planilla no responde, quedan los precios escritos en el HTML. */
+var SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSm8BSzrGyjJaWY6uI38V54a8zoVSMxEQLSlCTirdEvH_erUPx84-dtRXCmrS-_neWKs1wN3Jn-Vls/pub?gid=0&single=true&output=csv';
+
+(function(){
+  var tbody = document.getElementById('precios-body');
+  if (!tbody || SHEET_CSV_URL.indexOf('http') !== 0) return;
+
+  function parseCSV(text){
+    var rows=[], row=[], cell='', q=false;
+    for (var i=0;i<text.length;i++){
+      var c=text[i];
+      if (q){
+        if (c==='"'){ if (text[i+1]==='"'){cell+='"';i++;} else q=false; }
+        else cell+=c;
+      } else if (c==='"') q=true;
+      else if (c===',') { row.push(cell); cell=''; }
+      else if (c==='\n') { row.push(cell); rows.push(row); row=[]; cell=''; }
+      else if (c!=='\r') cell+=c;
+    }
+    if (cell!=='' || row.length){ row.push(cell); rows.push(row); }
+    return rows;
+  }
+  function precio(v){
+    var n = String(v||'').replace(/[^0-9]/g,'');
+    return n ? '$' + Number(n).toLocaleString('es-AR') : '—';
+  }
+  function td(text, cls){
+    var el=document.createElement('td');
+    if (cls) el.className=cls;
+    el.textContent=text;
+    return el;
+  }
+
+  fetch(SHEET_CSV_URL, {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
+    .then(function(text){
+      var rows = parseCSV(text).slice(1)            // saca el encabezado
+        .filter(function(r){ return r.some(function(c){ return c.trim(); }); });
+      if (!rows.length) return;
+      var frag=document.createDocumentFragment(), prev=null;
+      rows.forEach(function(r){
+        var prod=(r[0]||'').trim(), tr=document.createElement('tr');
+        var sub = prod==='' || prod===prev;
+        if (sub) tr.className='sub'; else prev=prod;
+        tr.appendChild(td(sub?'':prod));
+        tr.appendChild(td((r[1]||'').trim()));
+        tr.appendChild(td(precio(r[2]),'num'));
+        tr.appendChild(td(precio(r[3]),'num'));
+        frag.appendChild(tr);
+      });
+      tbody.replaceChildren(frag);
+    })
+    .catch(function(e){ console.warn('No se pudieron cargar los precios de la planilla:', e); });
+})();
 </script>
 </body>
 </html>
