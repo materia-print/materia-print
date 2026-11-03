@@ -1,0 +1,58 @@
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: "17 12 * * 1,4"   # lunes y jueves 09:17 (hora Argentina)
+  workflow_dispatch: {}        # botón "Run workflow" para probar a mano
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: materia-print
+            url_secret: MATERIA_URL
+            key_secret: MATERIA_KEY
+            table: productos          # CAMBIAR por una tabla de este proyecto con lectura pública (RLS select)
+          # - name: mumha
+          #   url_secret: MUMHA_URL
+          #   key_secret: MUMHA_KEY
+          #   table: productos
+          # - name: quemaspues
+          #   url_secret: QMP_URL
+          #   key_secret: QMP_ANON_KEY
+          #   table: productos
+    steps:
+      - name: Consultar ${{ matrix.name }}
+        env:
+          SB_URL: ${{ secrets[matrix.url_secret] }}
+          SB_KEY: ${{ secrets[matrix.key_secret] }}
+        run: |
+          code=$(curl -s -o /tmp/out.json -w "%{http_code}" \
+            "$SB_URL/rest/v1/${{ matrix.table }}?select=id&limit=1" \
+            -H "apikey: $SB_KEY")
+          echo "HTTP $code"; head -c 200 /tmp/out.json; echo
+          test "$code" = "200"
+
+  # GitHub desactiva los workflows programados si el repo pasa 60 días sin commits.
+  # Este paso hace un commit vacío una vez por mes para evitarlo.
+  keep-repo-active:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Commit mensual
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          if [ $(( (now - last) / 86400 )) -ge 30 ]; then
+            git config user.name "keepalive-bot"
+            git config user.email "keepalive-bot@users.noreply.github.com"
+            git commit --allow-empty -m "keepalive"
+            git push
+          else
+            echo "Hubo actividad hace menos de 30 días; no hace falta commit."
+          fi
