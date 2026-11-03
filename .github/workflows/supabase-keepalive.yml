@@ -15,7 +15,7 @@ jobs:
           - name: materia-print
             url_secret: MATERIA_URL
             key_secret: MATERIA_KEY
-            table: productos          # CAMBIAR por una tabla de este proyecto con lectura pública (RLS select)
+            table: keepalive
           # - name: mumha
           #   url_secret: MUMHA_URL
           #   key_secret: MUMHA_KEY
